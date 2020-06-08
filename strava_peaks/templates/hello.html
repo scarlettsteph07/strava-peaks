@@ -1,0 +1,240 @@
+<html>
+  <head>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inconsolata:wght@300;400;500;600&display=swap");
+    </style>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.26.0/moment-with-locales.min.js"
+      integrity="sha256-4HOrwHz9ACPZBxAav7mYYlbeMiAL0h6+lZ36cLNpR+E="
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@0.1.1/dist/chartjs-adapter-moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.bundle.min.js"></script>
+    <style>
+      body,
+      h1,
+      div,
+      ul,
+      li {
+        font-family: "Inconsolata", monospace;
+      }
+      a:hover {
+        text-decoration: underline !important;
+      }
+      a,
+      a:active,
+      a:link,
+      a:visited {
+        text-decoration: none;
+        color: #4c566a;
+      }
+      .options li {
+        display: inline-block;
+      }
+      .options span {
+        font-weight: 700;
+      }
+      #container {
+        padding-right: 15px;
+        padding-left: 15px;
+        margin-right: auto;
+        margin-left: auto;
+        max-width: 900px;
+      }
+      .active {
+        font-weight: 700;
+        color: #2e3440;
+        text-decoration: underline !important;
+      }
+      h1 {
+        border-bottom: 1px solid #2e3440;
+        font-size: 24px;
+      }
+      .my-class {
+        background-color: #ECEFF4;
+        border-color: 1px solid #D8DEE9;
+      }
+      ul {
+        list-style-type: none;
+        padding-inline-start: 0;
+      }
+      ::-webkit-scrollbar {
+          width: 0px;  /* Remove scrollbar space */
+          background: transparent;  /* Optional: just make scrollbar invisible */
+      }
+      /* Optional: show position indicator in red */
+      ::-webkit-scrollbar-thumb {
+          background: #FF0000;
+      }
+      #peaks {
+        scroll-behavior: smooth;
+        overflow-y: scroll;
+        height: 300px;
+      }
+      #peaks .position {
+        width: 30px;
+        display: inline-block;
+        font-weight: bold;
+        text-align: center;
+      }
+      #peaks .value {
+        width: 110px;
+        display: inline-block;
+      }
+      #peaks li {
+        padding-top: 5px;
+        padding-bottom: 5px;
+        border-color: 1px solid #D8DEE9;
+      }
+      #peaks .date {
+        margin-left: 155px;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <h1>^^Get^High^^</h1>
+      <ul id="durations" class="options">
+        <span>Duration</span>
+        {% for d in durations %}
+        <li>
+          <a
+            class="{%- if d == duration -%}active{% endif %}"
+            href="?type={{ type }}&duration={{d}}&limit={{limit}}&attribute={{attribute}}"
+            >{{d}}s</a
+          >
+        </li>
+        {% endfor %}
+      </ul>
+      <ul id="type" class="options">
+        <span>Type</span>
+        {% for t in types %}
+        <li>
+          <a
+            class="{%- if t == type -%}active{% endif %}"
+            href="?type={{t}}&duration={{duration}}&limit={{limit}}&attribute={{attribute}}"
+            >{{t}}</a
+          >
+        </li>
+        {% endfor %}
+      </ul>
+
+      <ul id="attribute" class="options">
+        <span>Attribute</span>
+        {% for a in attributes %}
+        <li>
+          <a
+            class="{%- if a == attribute -%}active{% endif %}"
+            href="?type={{type}}&duration={{duration}}&limit={{limit}}&attribute={{a}}"
+            >{{a}}</a
+          >
+        </li>
+        {% endfor %}
+      </ul>
+      <ul id="limit" class="options">
+        <span>Limit</span>
+        {% for l in [10, 25, 50, 100] %}
+        <li>
+          <a
+            class="{%- if l == limit -%}active{% endif %}"
+            href="?type={{type}}&duration={{duration}}&attribute={{attribute}}&limit={{l}}"
+            >{{l}}</a
+          >
+        </li>
+        {% endfor %}
+      </ul>
+      <div style="width: 100%;">
+        <canvas id="myChart"></canvas>
+      </div>
+      <ul id="peaks">
+        {% for item in data %}
+        <li id="activity-{{item.activity_id}}">
+          <span class="position">{{loop.index }}</span>
+          <span class="value"
+            >{{ "%.2f"|format(item.value) }} {%- if attribute == 'heartrate' -%}&nbsp;bpm{% endif
+            %} {%- if attribute == 'watts' -%}&nbsp;watts{% endif %}{%- if attribute == 'velocity_smooth' -%}&nbsp;mph{% endif %}</span
+          >
+          <a href="https://www.strava.com/activities/{{ item.activity_id }}"
+            >{{ item.name }}</a
+          >
+          <span class="date"
+            >{{ item.start_date_local.strftime("%d %B, %Y %X") }}</span
+          >
+        </li>
+        {% endfor %}
+      </ul>
+
+      <script>
+        Chart.defaults.global.defaultFontFamily = "Inconsolata";
+        Chart.defaults.global.defaultFontSize = 14;
+        Chart.defaults.global.defaultFontColor = "#2e3440";
+        Chart.defaults.global.legend.display = false;
+
+        var data = [
+        {% for item in data|sort(attribute='start_date_local') %}
+          {
+            x: moment("{{item.start_date_local.strftime("%Y-%m-%d %H:%M:%S")}}", 'YYYY-MM-DD hh:mm:ss'),
+            y: {{"%.2f"|format(item.value)}},
+            title: "{{item.name}} ({{"%.2f"|format(item.value)}})",
+            activityId: "{{item.activity_id}}"
+          }
+          {%- if loop.index != data|length -%},{% endif %}
+        {% endfor %}
+        ];
+
+        var ctx = document.getElementById("myChart").getContext("2d");
+        var myChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            datasets: [
+              {
+                label: "{{attribute}}",
+                pointRadius: 4,
+                hoverRadius: 8,
+                hoverBorderWidth: 4,
+                pointBackgroundColor: "#D8DEE9",
+                pointBorderColor: '#2e3440',
+                data: data,
+                fill: false,
+                showLine: false
+              },
+            ],
+          },
+          options: {
+              tooltips: {
+                callbacks: {
+                    label: function(tooltipItem, data) {
+                        var dataPoint = data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index];
+                        var activeElements = document.getElementsByClassName("my-class");
+                        for (i = 0; i < activeElements.length; i++) {
+                          activeElements[i].classList.remove("my-class");
+                        }
+                        var activityKey = "activity-" + dataPoint.activityId;
+                        location.hash = activityKey;
+                        var activityElem = document.getElementById(activityKey)
+                        if (activityElem) {
+                          activityElem.classList.add("my-class");
+                        }
+                        return dataPoint.title;
+                    }
+                }
+            },
+            scales: {
+              xAxes: [
+                {
+                  type: "time",
+                  distribution: 'linear',
+                  time: {
+                    unit: "year",
+                  },
+                  bounds: "ticks"
+                },
+              ]
+            },
+          },
+        });
+      </script>
+    </div>
+  </body>
+</html>
